@@ -1,0 +1,17 @@
+# Visual Studio - pliki tymczasowe
+.vs/
+*.user
+*.suo
+*.vstreq
+*.json
+
+# STM32 - śmieci z kompilacji
+Debug/
+Release/
+bin/
+obj/
+*.elf
+*.map
+*.list
+*.o
+*.d
