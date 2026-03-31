@@ -1,6 +1,14 @@
 *.bak
+
 *.kicad_prl
+
 *-backups/
+
 _autosave-*
+
 *.lck
-fp-info-cache
+
+.vs/
+*.json
+
+fp-info-cache co dodać do gitignore 
