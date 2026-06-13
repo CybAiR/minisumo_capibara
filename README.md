@@ -38,7 +38,8 @@ graph TD
     E -- YES --> F[Action: Charge / Attack]
     D --> C
     F --> C
-    G --> C```
+    G --> C
+```
 
 ## IO Assignment
 Pin configuration based on capibara.kicad_sch:
