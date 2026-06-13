@@ -1,56 +1,65 @@
 # minisumo_capibara
 
-Documentation for an autonomous minisumo class robot based on the STM32 architecture.
-
 ## Project Overview
-**Capibara** is a minisumo class robot (dimensions 10x10 cm, weight <500g) designed for autonomous combat on a dohyo ring. The robot's primary objectives are to detect the opponent and push them out of the ring while remaining within the white border lines. The brain of the robot is an **STM32 Black Pill** microcontroller.
-
----
+Capibara is an autonomous minisumo class robot designed to compete on a dohyo ring. The robot detects the opponent and pushes them out of the ring while staying inside the white border lines. The system is based on the STM32 Black Pill microcontroller.
 
 ## Technologies
-* **Electronics:** KiCad 10.0.0 (Project: `capibara.kicad_sch`)
-* **Software:** C (Logic based on a Finite State Machine)
-* **Mechanics:** Autodesk Inventor / Fusion 360 (3D Printing)
-* **Version Control:** Git / GitHub Flow using specific commit conventions
-
----
+* Electronics: KiCad (Project: capibara.kicad_sch)
+* Software: C
+* Mechanics: Autodesk Inventor (3D printed chassis)
 
 ## Folder Structure
-This repository is organized to separate different engineering domains:
+- `software` - Source code and firmware
+- `hardware` - KiCad schematics, PCB layouts, and components
+- `cad` - Autodesk Inventor source files and STL models
 
-- 📁 `software` – Source code and firmware
-- 📁 `hardware` – KiCad schematics
-- 📁 `cad` – Mechanical documentation, including Inventor source files and `.stl` printables
-
----
-
-## Bill of Materials
-Key components as defined in the `hardware` schematic:
-* **MCU:** STM32F401CCU6 (Black Pill)
-* **Motor Driver:** TB6612FNG (Dual H-Bridge)
-* **Voltage Regulator:** L7805 (+5V) with 100uF and 10uF filtration
-* **Sensors:** 
+## Bill of Materials (BOM)
+* MCU: STM32F401CCU6 (Black Pill)
+* Motor Driver: TB6612FNG
+* Voltage Regulator: L7805 (+5V) with filtering capacitors
+* Sensors: 
   * 1x SHARP IR (Opponent detection)
   * 2x QTR Reflectance sensors (Line detection)
-* **Power:** LiPo Battery (Input via `+BATT`)
-
----
+* Power: LiPo Battery
 
 ## Control Algorithm
-The robot operates using a prioritized decision loop:
-1. **Safety First:** If a QTR sensor detects the white line (`SIG_QTR_L` or `SIG_QTR_R`) -> Immediate reverse and rotation.
-2. **Attack:** If the Sharp sensor (`SIG_SHARP`) detects a target -> Full power forward.
-3. **Search:** If no line and no opponent are detected -> Rotate to scan the surroundings.
+The robot operates in a continuous decision loop:
+1. Safety: If either the left or right QTR sensor detects the line, the robot reverses and rotates.
+2. Attack: If the Sharp sensor detects the opponent, the robot moves forward at full power.
+3. Search: If no line or opponent is detected, the robot rotates to scan the ring.
 
-### Decision Logic Flowchart
 ```mermaid
 graph TD
     A([Start / Button Pressed]) --> B[5s Safety Delay]
     B --> C{Line Detected?}
     C -- YES --> D[Action: Reverse & Rotate]
     C -- NO --> E{Opponent Detected?}
-    E -- YES --> F[Action: Charge / Attack]
     E -- NO --> G[Action: Scan / Rotate]
+    E -- YES --> F[Action: Charge / Attack]
     D --> C
     F --> C
     G --> C
+
+## IO Assignment
+Pin configuration based on capibara.kicad_sch:
+
+| Pin | Signal | Function |
+| :--- | :--- | :--- |
+| PA0 | `SIG_SHARP` | Opponent sensor input |
+| PA1 | `SIG_QTR_L` | Left line sensor input |
+| PA2 | `SIG_QTR_R` | Right line sensor input |
+| PA4 | `DIR_L1` | Left Motor Direction 1 |
+| PA5 | `DIR_L2` | Left Motor Direction 2 |
+| PA6 | `PWM_L` | Left Motor Speed (PWM) |
+| PA7 | `MOT_STBY` | Motor Driver Standby |
+| PB0 | `SIG_START` | Start button |
+| PB5 | `PWM_R` | Right Motor Speed (PWM) |
+| PC14 | `DIR_R1` | Right Motor Direction 1 |
+| PC15 | `DIR_R2` | Right Motor Direction 2 |
+
+## Commit Conventions
+- `hw:` CAD and hardware development.
+- `docs:` Documentation updates.
+- `feat:` New features.
+- `fix:` Bug fixes.
+- `wip:` Work in progress.
