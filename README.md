@@ -29,20 +29,21 @@ The robot operates in a continuous decision loop:
 3. Search: If no line or opponent is detected, the robot rotates to scan the ring.
 
 ```mermaid
-graph TD
+flowchart TD
     A([Start / Button Pressed]) --> B[5s Safety Delay]
-    B --> C{Line Detected?}
+    B --> L1((Loop))
+    
+    L1 --> C{Line Detected?}
     
     C -- YES --> D[Action: Reverse & Rotate]
-    D --> C
-    
     C -- NO --> E{Opponent Detected?}
     
     E -- YES --> F[Action: Charge / Attack]
-    F --> C
-    
     E -- NO --> G[Action: Scan / Rotate]
-    G --> C
+    
+    D --> L2((Loop))
+    F --> L2((Loop))
+    G --> L2((Loop))
 ```
 
 ## IO Assignment
