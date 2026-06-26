@@ -32,12 +32,16 @@ The robot operates in a continuous decision loop:
 graph TD
     A([Start / Button Pressed]) --> B[5s Safety Delay]
     B --> C{Line Detected?}
+    
     C -- YES --> D[Action: Reverse & Rotate]
-    C -- NO --> E{Opponent Detected?}
-    E -- NO --> G[Action: Scan / Rotate]
-    E -- YES --> F[Action: Charge / Attack]
     D --> C
+    
+    C -- NO --> E{Opponent Detected?}
+    
+    E -- YES --> F[Action: Charge / Attack]
     F --> C
+    
+    E -- NO --> G[Action: Scan / Rotate]
     G --> C
 ```
 
@@ -58,9 +62,3 @@ Pin configuration based on capibara.kicad_sch:
 | PC14 | `DIR_R1` | Right Motor Direction 1 |
 | PC15 | `DIR_R2` | Right Motor Direction 2 |
 
-## Commit Conventions
-- `hw:` CAD and hardware development.
-- `docs:` Documentation updates.
-- `feat:` New features.
-- `fix:` Bug fixes.
-- `wip:` Work in progress.
