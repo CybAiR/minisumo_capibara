@@ -29,12 +29,13 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef enum {
+typedef enum
+{
     LINE_NONE = 0,
     LINE_LEFT = 1,
     LINE_RIGHT = 2,
     LINE_BOTH = 3
-} LineState;
+} lineState_E;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -53,13 +54,8 @@ ADC_HandleTypeDef hadc1;
 TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
-
-volatile uint32_t debug_raw_adc = 0;
-float distance = 0.0f;
-
-
-
-
+volatile uint32_t gDebug_raw_adc = 0;
+float gDistance = 0.0f;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,19 +65,16 @@ static void MX_ADC1_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
-
-float Sharp_Get_Distance(void);
-LineState QTR_Read_Sensors(void);
-uint32_t ADC_Read_Channel(uint32_t channel);
-void Set_Motors(int speedL, int speedR);
-
+float sharpGetDistance(void);
+lineState_E qtrReadSensors(void);
+uint32_t adcReadChannel(uint32_t channel);
+void setMotor(TIM_HandleTypeDef* pTimer, uint32_t channel, GPIO_TypeDef* pPort1, uint16_t pin1, GPIO_TypeDef* pPort2, uint16_t pin2, int speed);
+void setMotors(int speed_l, int speed_r);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-
 #define QTR_THRESHOLD 1500
 #define ATTACK_DISTANCE 40.0f
 /* USER CODE END 0 */
@@ -120,73 +113,65 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-
-
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
-
   HAL_ADC_Start(&hadc1);
 
-  // --- MODUŁ STARTOWY (CZEKANIE NA PRZYCISK) ---
-    while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_RESET)
-    {
-    	HAL_Delay(50);
-    }
-    HAL_Delay(5000);
-
-
-
+  while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_RESET)
+  {
+      HAL_Delay(50);
+  }
+  HAL_Delay(5000);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
-    {
-	  //ODCZYT
-	        distance = Sharp_Get_Distance();
-	        LineState dohyo_edge = QTR_Read_Sensors();
+  {
+      gDistance = sharpGetDistance();
+      lineState_E dohyo_edge = qtrReadSensors();
 
-	        //LOGIKA WALKI
+      if (dohyo_edge != LINE_NONE)
+      {
+          if (dohyo_edge == LINE_BOTH)
+          {
+              setMotors(-1000, -1000);
+              HAL_Delay(300);
+              setMotors(-800, 800);
+              HAL_Delay(400);
+          }
+          else if (dohyo_edge == LINE_LEFT)
+          {
+              setMotors(-1000, -1000);
+              HAL_Delay(250);
+              setMotors(800, -800);
+              HAL_Delay(300);
+          }
+          else if (dohyo_edge == LINE_RIGHT)
+          {
+              setMotors(-1000, -1000);
+              HAL_Delay(250);
+              setMotors(-800, 800);
+              HAL_Delay(300);
+          }
+      }
+      else
+      {
+          if (gDistance <= ATTACK_DISTANCE)
+          {
+              setMotors(1000, 1000);
+          }
+          else
+          {
+              setMotors(500, -500);
+          }
+      }
 
-	        // PRIORYTET 1: Biała linia
-	        if (dohyo_edge != LINE_NONE)
-	        {
-	            if (dohyo_edge == LINE_BOTH) {
-	                Set_Motors(-1000, -1000);
-	                HAL_Delay(300);
-	                Set_Motors(-800, 800);
-	                HAL_Delay(400);
-	            }
-	            else if (dohyo_edge == LINE_LEFT) {
-	                Set_Motors(-1000, -1000);
-	                HAL_Delay(250);
-	                Set_Motors(800, -800);
-	                HAL_Delay(300);
-	            }
-	            else if (dohyo_edge == LINE_RIGHT) {
-	                Set_Motors(-1000, -1000);
-	                HAL_Delay(250);
-	                Set_Motors(-800, 800);
-	                HAL_Delay(300);
-	            }
-	        }
-	        // PRIORYTET 2: ATAK LUB SZUKANIE
-	        else
-	        {
-	            if (distance <= ATTACK_DISTANCE) {
+      HAL_Delay(5);
+  /* USER CODE END WHILE */
 
-	                Set_Motors(1000, 1000);
-	            } else {
+  /* USER CODE BEGIN 3 */
 
-	                Set_Motors(500, -500);
-	            }
-	        }
-
-	        HAL_Delay(5);
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-
-    }
+  }
   /* USER CODE END 3 */
 }
 
@@ -402,57 +387,80 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-// --- 1. ODŚWIEŻONY SHARP ---
-float Sharp_Get_Distance(void) {
+
+float sharpGetDistance(void)
+{
     uint32_t sum = 0;
     uint8_t samples = 20;
 
-    for (int i = 0; i < samples; i++) {
-        // Teraz czytamy ze wskazaniem na kanał 0 (PA0)
-        sum += ADC_Read_Channel(ADC_CHANNEL_0);
+    for (int i = 0; i < samples; i++)
+    {
+        sum += adcReadChannel(ADC_CHANNEL_0);
     }
 
     uint32_t raw = sum / samples;
-    debug_raw_adc = raw; // Diagnostyka
+    gDebug_raw_adc = raw;
 
-    if (raw > 3600) return 8.0f;
-    if (raw < 960) return 80.0f;
+    if (raw > 3600)
+    {
+        return 8.0f;
+    }
+
+    if (raw < 960)
+    {
+        return 80.0f;
+    }
 
     float dist = 27500.0f / (float)(raw - 600);
 
-    if (dist > 80.0f) return 80.0f;
-    if (dist < 8.0f) return 8.0f;
+    if (dist > 80.0f)
+    {
+        return 80.0f;
+    }
+
+    if (dist < 8.0f)
+    {
+        return 8.0f;
+    }
 
     return dist;
 }
 
-// --- 2. NOWA FUNKCJA CZUJNIKÓW LINII ---
-LineState QTR_Read_Sensors(void) {
-    // Odczyt lewego (PA1) i prawego (PA2) czujnika
-    uint32_t left_val = ADC_Read_Channel(ADC_CHANNEL_1);
-    uint32_t right_val = ADC_Read_Channel(ADC_CHANNEL_2);
+lineState_E qtrReadSensors(void)
+{
+    uint32_t left_val = adcReadChannel(ADC_CHANNEL_1);
+    uint32_t right_val = adcReadChannel(ADC_CHANNEL_2);
 
-    // Logika: Jeśli napięcie spadnie poniżej progu, widzimy biel
-    bool left_sees_white = (left_val < QTR_THRESHOLD);
-    bool right_sees_white = (right_val < QTR_THRESHOLD);
+    bool isLeft_white = (left_val < QTR_THRESHOLD);
+    bool isRight_white = (right_val < QTR_THRESHOLD);
 
-    if (left_sees_white && right_sees_white) return LINE_BOTH;
-    if (left_sees_white) return LINE_LEFT;
-    if (right_sees_white) return LINE_RIGHT;
+    if (isLeft_white && isRight_white)
+    {
+        return LINE_BOTH;
+    }
 
-    return LINE_NONE; // Widzi czarne (bezpiecznie)
+    if (isLeft_white)
+    {
+        return LINE_LEFT;
+    }
+
+    if (isRight_white)
+    {
+        return LINE_RIGHT;
+    }
+
+    return LINE_NONE;
 }
 
-uint32_t ADC_Read_Channel(uint32_t channel) {
+uint32_t adcReadChannel(uint32_t channel)
+{
     ADC_ChannelConfTypeDef sConfig = {0};
     sConfig.Channel = channel;
     sConfig.Rank = 1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_84CYCLES; // Wystarczająco szybki
+    sConfig.SamplingTime = ADC_SAMPLETIME_84CYCLES;
 
-    // Przełącz kanał ADC
     HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
-    // Wykonaj pomiar
     HAL_ADC_Start(&hadc1);
     HAL_ADC_PollForConversion(&hadc1, 5);
     uint32_t val = HAL_ADC_GetValue(&hadc1);
@@ -461,35 +469,41 @@ uint32_t ADC_Read_Channel(uint32_t channel) {
     return val;
 }
 
-// speedL i speedR mogą być od -1000 (maks do tyłu) do 1000 (maks do przodu)
-void Set_Motors(int speedL, int speedR) {
-    // --- SILNIK A (LEWY) - PA6 (PWM), PA4/PA5 (Kierunek) ---
-    int pwm_L = abs(speedL);
-    if (pwm_L > 1000) pwm_L = 1000;
-    if (pwm_L < 50 && pwm_L != 0) pwm_L = 0; // Martwa strefa
+void setMotor(TIM_HandleTypeDef* pTimer, uint32_t channel, GPIO_TypeDef* pPort1, uint16_t pin1, GPIO_TypeDef* pPort2, uint16_t pin2, int speed)
+{
+    int pwm_val = abs(speed);
 
-    if (speedL >= 0) { // Przód
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);   // AIN1
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET); // AIN2
-    } else {           // Tył
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+    if (pwm_val > 1000)
+    {
+        pwm_val = 1000;
     }
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pwm_L);
 
-    // --- SILNIK B (PRAWY) - PB5 (PWM), PC13/PC14 (Kierunek) ---
-    int pwm_R = abs(speedR);
-    if (pwm_R > 1000) pwm_R = 1000;
-    if (pwm_R < 50 && pwm_R != 0) pwm_R = 0; // Martwa strefa
-
-    if (speedR >= 0) { // Przód
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);   // BIN1
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_RESET); // BIN2
-    } else {           // Tył
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_SET);
+    // Dead zone
+    if (pwm_val < 50 && pwm_val != 0)
+    {
+        pwm_val = 0;
     }
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, pwm_R);
+
+    // Forward
+    if (speed >= 0)
+    {
+        HAL_GPIO_WritePin(pPort1, pin1, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(pPort2, pin2, GPIO_PIN_RESET);
+    }
+    // Backward
+    else
+    {
+        HAL_GPIO_WritePin(pPort1, pin1, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(pPort2, pin2, GPIO_PIN_SET);
+    }
+
+    __HAL_TIM_SET_COMPARE(pTimer, channel, pwm_val);
+}
+
+void setMotors(int speed_l, int speed_r)
+{
+    setMotor(&htim3, TIM_CHANNEL_1, GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_5, speed_l);
+    setMotor(&htim3, TIM_CHANNEL_2, GPIOC, GPIO_PIN_13, GPIOC, GPIO_PIN_14, speed_r);
 }
 
 /* USER CODE END 4 */
@@ -508,10 +522,11 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-#ifdef USE_FULL_ASSERT
+
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
+  * where the assert_param error has occurred.
   * @param  file: pointer to the source file name
   * @param  line: assert_param error line source number
   * @retval None
