@@ -117,9 +117,8 @@ int main(void)
   HAL_ADC_Start(&hadc1);
 
   while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_RESET)
-  {
       HAL_Delay(50);
-  }
+
   HAL_Delay(5000);
   /* USER CODE END 2 */
 
@@ -157,13 +156,9 @@ int main(void)
       else
       {
           if (gDistance <= ATTACK_DISTANCE)
-          {
               setMotors(1000, 1000);
-          }
           else
-          {
               setMotors(500, -500);
-          }
       }
 
       HAL_Delay(5);
@@ -197,9 +192,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
     Error_Handler();
-  }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
@@ -211,9 +204,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
-  {
     Error_Handler();
-  }
 }
 
 /**
@@ -249,9 +240,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
-  {
     Error_Handler();
-  }
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
@@ -259,9 +248,7 @@ static void MX_ADC1_Init(void)
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
     Error_Handler();
-  }
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
@@ -294,36 +281,29 @@ static void MX_TIM3_Init(void)
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
-  {
     Error_Handler();
-  }
+
   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
   if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
-  {
     Error_Handler();
-  }
+
   if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
-  {
     Error_Handler();
-  }
+
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-  {
     Error_Handler();
-  }
+
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
     Error_Handler();
-  }
+
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
     Error_Handler();
-  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
@@ -394,34 +374,24 @@ float sharpGetDistance(void)
     uint8_t samples = 20;
 
     for (int i = 0; i < samples; i++)
-    {
         sum += adcReadChannel(ADC_CHANNEL_0);
-    }
 
     uint32_t raw = sum / samples;
     gDebug_raw_adc = raw;
 
     if (raw > 3600)
-    {
         return 8.0f;
-    }
 
     if (raw < 960)
-    {
         return 80.0f;
-    }
 
     float dist = 27500.0f / (float)(raw - 600);
 
     if (dist > 80.0f)
-    {
         return 80.0f;
-    }
 
     if (dist < 8.0f)
-    {
         return 8.0f;
-    }
 
     return dist;
 }
@@ -435,19 +405,13 @@ lineState_E qtrReadSensors(void)
     bool isRight_white = (right_val < QTR_THRESHOLD);
 
     if (isLeft_white && isRight_white)
-    {
         return LINE_BOTH;
-    }
 
     if (isLeft_white)
-    {
         return LINE_LEFT;
-    }
 
     if (isRight_white)
-    {
         return LINE_RIGHT;
-    }
 
     return LINE_NONE;
 }
@@ -471,18 +435,14 @@ uint32_t adcReadChannel(uint32_t channel)
 
 void setMotor(TIM_HandleTypeDef* pTimer, uint32_t channel, GPIO_TypeDef* pPort1, uint16_t pin1, GPIO_TypeDef* pPort2, uint16_t pin2, int speed)
 {
-    int pwm_val = abs(speed);
+    int speed_pwm = abs(speed);
 
-    if (pwm_val > 1000)
-    {
-        pwm_val = 1000;
-    }
+    if (speed_pwm > 1000)
+        speed_pwm = 1000;
 
     // Dead zone
-    if (pwm_val < 50 && pwm_val != 0)
-    {
-        pwm_val = 0;
-    }
+    if (speed_pwm < 50 && speed_pwm != 0)
+        speed_pwm = 0;
 
     // Forward
     if (speed >= 0)
@@ -497,7 +457,7 @@ void setMotor(TIM_HandleTypeDef* pTimer, uint32_t channel, GPIO_TypeDef* pPort1,
         HAL_GPIO_WritePin(pPort2, pin2, GPIO_PIN_SET);
     }
 
-    __HAL_TIM_SET_COMPARE(pTimer, channel, pwm_val);
+    __HAL_TIM_SET_COMPARE(pTimer, channel, speed_pwm);
 }
 
 void setMotors(int speed_l, int speed_r)
@@ -517,9 +477,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1)
-  {
-  }
+  while (1);
   /* USER CODE END Error_Handler_Debug */
 }
 
